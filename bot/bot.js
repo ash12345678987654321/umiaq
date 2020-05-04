@@ -7,7 +7,7 @@ const words = new Map(); //store words and their definition
 
 const dist = "AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOPPQRRRRRRSSSSTTTTTTUUUUVVWWXYYZ";
 //this is just a distribution of tiles to generate scrabble word quiz
-const score = [1,3,3,2,1,4,2,4,1,8,5,1,3,1,1,3,10,1,1,1,1,4,4,8,4,10]
+const score = [1, 3, 3, 2, 1, 4, 2, 4, 1, 8, 5, 1, 3, 1, 1, 3, 10, 1, 1, 1, 1, 4, 4, 8, 4, 10];
 const L2 = []; //set of 2 letters
 const L3 = []; //set of 3 letters
 
@@ -16,18 +16,20 @@ let usedSet = new Set();
 let scores = new Map();
 let points = new Map();
 
+let gameOnGoing=false;
+
 function toAlphagram(str) {
     return str.split("").sort().join("");
 }
 
 function scoreWord(str) {
-	console.log(str)
-	let res = 0;
-    for (let i = 0; i < str.length; i++){
-		console.log(str.charCodeAt(i) - 65)
-		res += score[str.charCodeAt(i) - 65];
-	}
-	return res;
+    console.log(str);
+    let res = 0;
+    for (let i = 0; i < str.length; i++) {
+        console.log(str.charCodeAt(i) - 65);
+        res += score[str.charCodeAt(i) - 65];
+    }
+    return res;
 }
 
 client.on("ready", () => {
@@ -51,39 +53,39 @@ client.on("ready", () => {
 
 client.on("message", async msg => {
     if (msg.author.bot) return;
-	//console.log(msg)
+    //console.log(msg)
     let message = msg.content;
-	
-    if (message.length < 2 || message.substring(0, 2) !== "u!"){
-		if (msg.channel.id === '706659909630033991'){
-			
-			let word = message.toUpperCase();
-			console.log("word is " + word)
-			if (words.has(word) && !usedSet.has(word)) {
-				let alph = toAlphagram(word)
-				for (let mask = 0; mask < 128; mask++) {
-					let check = "";
-					for (let i = 0; i < 7; i++) {
-						if (mask & (1 << i)) {
-							check += curWord[i];
-						}
-					}
-					if (check === alph) {
-						let name = msg.author.username;
-						msg.react('👍')
-						if (scores[name] == null) scores[name] = 0
-						if (points[name] == null) points[name] = 0
-						scores[name]++
-						points[name] += scoreWord(word);
-						//msg.channel.send(word + " is good! " + scoreWord(word) + " points");
-						usedSet.add(word)
-						return;
-					}
-				}
-			}
-		}
-		return;
-	}
+
+    if (message.length < 2 || message.substring(0, 2) !== "u!") {
+        if (msg.channel.id === '706659909630033991') {
+
+            let word = message.toUpperCase();
+            console.log("word is " + word);
+            if (words.has(word) && !usedSet.has(word)) {
+                let alph = toAlphagram(word);
+                for (let mask = 0; mask < 128; mask++) {
+                    let check = "";
+                    for (let i = 0; i < 7; i++) {
+                        if (mask & (1 << i)) {
+                            check += curWord[i];
+                        }
+                    }
+                    if (check === alph) {
+                        let name = msg.author.username;
+                        msg.react('👍');
+                        if (scores[name] == null) scores[name] = 0;
+                        if (points[name] == null) points[name] = 0;
+                        scores[name]++;
+                        points[name] += scoreWord(word);
+                        //msg.channel.send(word + " is good! " + scoreWord(word) + " points");
+                        usedSet.add(word);
+                        return;
+                    }
+                }
+            }
+        }
+        return;
+    }
     message = message.substring(2).split(" ");
     console.log(message);
 
@@ -160,29 +162,36 @@ client.on("message", async msg => {
                 sentEmbed.reactions.cache.get('❎').remove();
             });
         });
-    } else if (message[0] === "scramble" && message[1] === "start") {
-		
-		if (msg.channel.id !== '706659909630033991') return;
-        let word = "";
-        for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
-        curWord = word = word.split("").sort().join("");
-        msg.channel.setTopic(word);
-        msg.channel.send("rack chosen!");
-		usedSet.clear()
-		scores.clear()
-		
-    } 
-	else if (message[0] === "scramble" && message[1] === "scores") {
-		
-		if (msg.channel.id !== '706659909630033991') return;
-		var toSend = "Scores: \n"
-		console.log(scores)
-        for (var key in scores) {
-			toSend += (key + ": " + scores[key] + " words, " + points[key] + " points\n")
-			console.log(key, scores[key], points[key]);
-		}
-		msg.channel.send(toSend)
-    } 
+    } else if (message[0] === "scramble") {
+        if (msg.channel.id !== '706659909630033991') return; //ensure games only take place in scramble
+
+        if (gameOnGoing){
+            msg.channel.send("A game is currently going on...");
+        }
+        else {
+            gameOnGoing = true;
+
+            let word = "";
+            for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
+            curWord = word = word.split("").sort().join("");
+            msg.channel.setTopic(word);
+            msg.channel.send("Rack: "+word);
+            usedSet.clear();
+            scores.clear();
+
+            setTimeout(() => {
+                var toSend = "Scores: \n";
+                console.log(scores);
+                for (var key in scores) {
+                    toSend += (key + ": " + scores[key] + " words, " + points[key] + " points\n");
+                    console.log(key, scores[key], points[key]);
+                }
+                msg.channel.send(toSend);
+
+                gameOnGoing = false;
+            }, 60000);
+        }
+    }
 
 });
 
