@@ -1,32 +1,32 @@
 const Discord = require("discord.js");
 const client = new Discord.Client();
 
-const fs= require("fs");
+const fs = require("fs");
 
-const words=new Map(); //store words and their definition
+const words = new Map(); //store words and their definition
 
-const dist="AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOPPQRRRRRRSSSSTTTTTTUUUUVVWWXYYZ";
+const dist = "AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOPPQRRRRRRSSSSTTTTTTUUUUVVWWXYYZ";
 //this is just a distribution of tiles to generate scrabble word quiz
 
-const L2=[]; //set of 2 letters
-const L3=[]; //set of 3 letters
+const L2 = []; //set of 2 letters
+const L3 = []; //set of 3 letters
 
-var curWord
+let curWord;
 
-function toAlphagram(str){
-	return str.split("").sort().join("");
+function toAlphagram(str) {
+    return str.split("").sort().join("");
 }
 
 client.on("ready", () => {
     console.log("Reading lexicon...");
 
-    fs.readFile('../rsc/CSW19.txt', function(err, data) {
-        if(err) throw err;
+    fs.readFile('../rsc/CSW19.txt', function (err, data) {
+        if (err) throw err;
 
-        for (let word of data.toString().split("\r\n")){
-            const temp=word.split("\t");
+        for (let word of data.toString().split("\r\n")) {
+            const temp = word.split("\t");
 
-            words.set(temp[0],temp[1]);
+            words.set(temp[0], temp[1]);
 
             if (temp[0].length === 2) L2.push(temp[0]);
             if (temp[0].length === 3) L3.push(temp[0]);
@@ -48,39 +48,34 @@ client.on("message", async msg => {
 
     if (message[0] === "ping") {
         const m = await msg.channel.send("Ping?");
-        m.edit("Latency is "+(m.createdTimestamp - msg.createdTimestamp)+"ms.");
-    }
-    else if (message[0] === "valid"){
-        if (message.length < 2){
+        m.edit("Latency is " + (m.createdTimestamp - msg.createdTimestamp) + "ms.");
+    } else if (message[0] === "valid") {
+        if (message.length < 2) {
             msg.channel.send("No word specified");
-        }
-        else{
+        } else {
             const word = message[1].toUpperCase();
             console.log(word);
 
-            if (words.has(word)){
-                msg.channel.send(word+" is valid!\n" +
-                    "Definition: "+words.get(word));
-            }
-            else{
-                msg.channel.send(word+" is not valid!");
+            if (words.has(word)) {
+                msg.channel.send(word + " is valid!\n" +
+                    "Definition: " + words.get(word));
+            } else {
+                msg.channel.send(word + " is not valid!");
             }
         }
-    }
-    else if (message[0] === "test"){
-        var word="";
-        if (rng(0,2)===0) {
-            if (rng(0, 2) === 0) word=L2[rng(0, L2.length)];
+    } else if (message[0] === "test") {
+        let word = "";
+        if (rng(0, 2) === 0) {
+            if (rng(0, 2) === 0) word = L2[rng(0, L2.length)];
             else for (let i = 0; i < 2; i++) word += dist[rng(0, 98)];
-        }
-        else {
-            if (rng(0, 2) === 0) word=L3[rng(0, L3.length)];
+        } else {
+            if (rng(0, 2) === 0) word = L3[rng(0, L3.length)];
             else for (let i = 0; i < 3; i++) word += dist[rng(0, 98)];
         }
 
         console.log(word);
 
-        await msg.channel.send(msg.author.toString()+" "+word).then(async sentEmbed => {
+        await msg.channel.send(msg.author.toString() + " " + word).then(async sentEmbed => {
             try {
                 await sentEmbed.react('✅');
                 await sentEmbed.react('❎');
@@ -94,16 +89,16 @@ client.on("message", async msg => {
             const collector = sentEmbed.createReactionCollector(filter, {time: 5000});
             collector.on('collect', r => {
                 if (graded) return;
-                graded=true;
+                graded = true;
 
-                var choice=(r.emoji.name==='✅');
+                var choice = (r.emoji.name === '✅');
 
                 let verdict;
-                if (choice===words.has(word)) verdict="You are correct!\n";
-                else verdict="You are wrong!\n";
+                if (choice === words.has(word)) verdict = "You are correct!\n";
+                else verdict = "You are wrong!\n";
 
-                if (words.has(word)) verdict+=word+" is a word.\nDefinition: "+words.get(word);
-                else verdict+=word+" is not a word.";
+                if (words.has(word)) verdict += word + " is a word.\nDefinition: " + words.get(word);
+                else verdict += word + " is not a word.";
 
                 sentEmbed.edit(verdict);
 
@@ -115,8 +110,8 @@ client.on("message", async msg => {
 
                 let verdict = "You ran out of time.\n";
 
-                if (words.has(word)) verdict+=word+" is a word.\nDefinition: "+words.get(word);
-                else verdict+=word+" is not a word.";
+                if (words.has(word)) verdict += word + " is a word.\nDefinition: " + words.get(word);
+                else verdict += word + " is not a word.";
 
                 sentEmbed.edit(verdict);
 
@@ -124,35 +119,33 @@ client.on("message", async msg => {
                 sentEmbed.reactions.cache.get('❎').remove();
             });
         });
-    }
-	else if (message[0] === "scramble" && message[1] === "start"){
-		var word = "";
-		for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
-		curWord = word = word.split("").sort().join("")
-		///how to check
-		msg.channel.setTopic(word);
+    } else if (message[0] === "scramble" && message[1] === "start") {
+        let word = "";
+        for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
+        curWord = word = word.split("").sort().join("");
+        ///how to check
+        msg.channel.setTopic(word);
 
         msg.channel.send("rack chosen");
-	}
-	else if (message[0] === "g"){
-		var word = message[1].toUpperCase();
-		if (words.has(word)){
-			word = toAlphagram(word);
-			for (var mask = 0; mask < 128; mask++){
-				var check = "";
-				for (var i = 0; i < 7; i++){
-					if (mask & (1<<i)){
-						check += curWord[i];
-					}
-				}
-				if (check === word){
-					msg.channel.send("good!")
-					return;
-				}
-			}
-		}
-		msg.channel.send("you cant make that word!")
-	}
+    } else if (message[0] === "g") {
+        let word = message[1].toUpperCase();
+        if (words.has(word)) {
+            word = toAlphagram(word);
+            for (let mask = 0; mask < 128; mask++) {
+                let check = "";
+                for (let i = 0; i < 7; i++) {
+                    if (mask & (1 << i)) {
+                        check += curWord[i];
+                    }
+                }
+                if (check === word) {
+                    msg.channel.send("good!");
+                    return;
+                }
+            }
+        }
+        msg.channel.send("you cant make that word!")
+    }
 
 });
 
@@ -160,5 +153,5 @@ client.login(require('./auth.json').token);
 
 //utility shit
 function rng(min, max) { //get a random integer from [min,max)
-    return Math.floor(Math.random() * (max - min) ) + min;
+    return Math.floor(Math.random() * (max - min)) + min;
 }
