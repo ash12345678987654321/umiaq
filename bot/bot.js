@@ -14,7 +14,7 @@ const L3 = []; //set of 3 letters
 let curWord;
 let usedSet = new Set();
 
-let scores = new Map();
+let numWords = new Map();
 let points = new Map();
 let names = new Map();
 let ids = [];
@@ -46,22 +46,22 @@ client.on("message", async msg => {
     let message = msg.content;
 
     if (message.length < 2 || message.substring(0, 2) !== "u!") { //string does not match command format
-        if (msg.channel.id === '706659909630033991') {
+        if (msg.channel.id === '706659909630033991' && gameOnGoing) {
             let word = message.toUpperCase();
 
-            if (isValid(word)) {
+            if (isFormable(word,curWord)) {
                 let id = msg.author.id;
                 msg.react('👍');
 
-                if (names[id] == null) {
+                if (!names.has(id)) {
                     ids.push(id);
-                    names[id] = msg.author.username;
-                    scores[id] = 0;
-                    points[id] = 0;
+                    names.set(id,msg.author.username);
+                    numWords.set(id,0);
+                    points.set(id,0);
                 }
 
-                scores[id]++;
-                points[id] += scoreWord(word);
+                numWords.set(id,numWords.get(id)+1);
+                points.set(id,points.get(id)+getPoints(word));
                 //msg.channel.send(word + " is good! " + scoreWord(word) + " points");
                 usedSet.add(word);
             }
@@ -91,13 +91,13 @@ client.on("message", async msg => {
             }
         }
     } else if (message[0] === "test") {
-        let word = "";
+        let word;
         if (rng(0, 2) === 0) {
             if (rng(0, 2) === 0) word = L2[rng(0, L2.length)];
-            else for (let i = 0; i < 2; i++) word += dist[rng(0, 98)];
+            else word = genWord(2);
         } else {
             if (rng(0, 2) === 0) word = L3[rng(0, L3.length)];
-            else for (let i = 0; i < 3; i++) word += dist[rng(0, 98)];
+            else word = genWord(3);
         }
 
         console.log(word);
@@ -154,17 +154,16 @@ client.on("message", async msg => {
         } else {
             gameOnGoing = true;
 
-            curWord = "";
-            for (let i = 0; i < 7; i++) curWord += dist[rng(0, 98)];
+            curWord = genWord(7);
             curWord = toAlphagram(curWord);
             msg.channel.setTopic(curWord);
             msg.channel.send("Rack: " + curWord);
 
             //initializing shit
-            usedSet = new Set();
-            scores = new Map();
-            points = new Map();
-            names = new Map();
+            usedSet.clear();
+            numWords.clear();
+            points.clear();
+            names.clear();
             ids = [];
 
             setTimeout(() => {
@@ -176,7 +175,7 @@ client.on("message", async msg => {
 
                 let toSend = "Scores: \n";
                 for (const id of ids) {
-                    toSend += (names[id] + ": " + scores[id] + " words, " + points[id] + " points\n");
+                    toSend += (names.get(id) + ": " + numWords.get(id) + " words, " + points.get(id) + " points\n");
                 }
                 msg.channel.send(toSend);
 
@@ -193,7 +192,7 @@ function toAlphagram(str) {
     return str.split("").sort().join("");
 }
 
-function scoreWord(str) {
+function getPoints(str) {
     let res = 0;
     for (let i = 0; i < str.length; i++) {
         res += score[str.charCodeAt(i) - 65];
@@ -201,21 +200,29 @@ function scoreWord(str) {
     return res;
 }
 
-function isValid(word) {
-    if (words.has(word) && !usedSet.has(word)) {
-        let alph = toAlphagram(word);
-        for (let mask = 0; mask < 128; mask++) {
-            let check = "";
-            for (let i = 0; i < 7; i++) {
-                if (mask & (1 << i)) {
-                    check += curWord[i];
-                }
-            }
+function genWord(length){
+    let word = "";
+    for (let i = 0; i < length; i++) word += dist[rng(0, 98)];
+    return word;
+}
 
-            if (alph === check) return true;
+function isFormable(word, rack){
+    if (!words.has(word) || usedSet.has(word)) return false;
+
+    word = toAlphagram(word);
+    rack = toAlphagram(rack);
+    length = rack.length;
+    for (let mask = 0; mask < (1<<length); mask++) {
+        let check = "";
+        for (let i = 0; i < length; i++) {
+            if (mask & (1 << i)) {
+                check += rack[i];
+            }
+        }
+        if (check === word) {
+            return true;
         }
     }
-
     return false;
 }
 
