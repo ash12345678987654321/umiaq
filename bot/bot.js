@@ -8,28 +8,60 @@ const words = new Map(); //store words and their definition
 const dist = "AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOPPQRRRRRRSSSSTTTTTTUUUUVVWWXYYZ";
 //this is just a distribution of tiles to generate scrabble word quiz
 const score = [1, 3, 3, 2, 1, 4, 2, 4, 1, 8, 5, 1, 3, 1, 1, 3, 10, 1, 1, 1, 1, 4, 4, 8, 4, 10];
+///letter values
+
 const L2 = []; //set of 2 letters
 const L3 = []; //set of 3 letters
 
-let curWord;
-let usedSet = new Set();
-let scores = new Map();
-let points = new Map();
+let curRack;
+let usedSet = new Set(); ///set of used words
+let numwords = new Map(); ///map of id: scores: number of words
+let points = new Map(); ///map of id: points: points of words
 
 let gameOnGoing=false;
 
-function toAlphagram(str) {
+function toAlphagram(str) { ///generates alphagram
     return str.split("").sort().join("");
 }
 
-function scoreWord(str) {
-    console.log(str);
+function getPoints(str) { ///gets points of word
     let res = 0;
     for (let i = 0; i < str.length; i++) {
-        console.log(str.charCodeAt(i) - 65);
         res += score[str.charCodeAt(i) - 65];
     }
     return res;
+}
+
+function genWord(length){
+	let word = ""
+	for (let i = 0; i < length; i++) word += dist[rng(0, 98)];
+	return word;
+}
+
+function isFormable(word, rack){
+	word = toAlphagram(word)
+	rack = toAlphagram(rack)
+	length = rack.length
+	for (let mask = 0; mask < (1<<length); mask++) {
+		let check = "";
+		for (let i = 0; i < length; i++) {
+			if (mask & (1 << i)) {
+				check += rack[i];
+			}
+		}
+		if (check === word) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function addWord(id, word){ ///id got word, add points and score
+	if (numwords.get(id) == undefined) numwords.set(id,0);
+	if (points.get(id) == undefined) points.set(id,0);
+	numwords.set(id,numwords.get(id)+1);
+	points.set(id,points.get(id)+getPoints(word));
+	usedSet.add(word);
 }
 
 client.on("ready", () => {
@@ -57,31 +89,15 @@ client.on("message", async msg => {
     let message = msg.content;
 
     if (message.length < 2 || message.substring(0, 2) !== "u!") {
-        if (msg.channel.id === '706659909630033991') {
+        if (msg.channel.id === '706659909630033991' && gameOnGoing) {
 
             let word = message.toUpperCase();
-            console.log("word is " + word);
-            if (words.has(word) && !usedSet.has(word)) {
-                let alph = toAlphagram(word);
-                for (let mask = 0; mask < 128; mask++) {
-                    let check = "";
-                    for (let i = 0; i < 7; i++) {
-                        if (mask & (1 << i)) {
-                            check += curWord[i];
-                        }
-                    }
-                    if (check === alph) {
-                        let name = msg.author.username;
-                        msg.react('👍');
-                        if (scores[name] == null) scores[name] = 0;
-                        if (points[name] == null) points[name] = 0;
-                        scores[name]++;
-                        points[name] += scoreWord(word);
-                        //msg.channel.send(word + " is good! " + scoreWord(word) + " points");
-                        usedSet.add(word);
-                        return;
-                    }
-                }
+            //console.log("word is " + word);
+            if (words.has(word) && !usedSet.has(word) && isFormable(word,curRack)) {
+				let id = msg.author.username;
+				msg.react('👍');
+				addWord(id,word)
+				return;
             }
         }
         return;
@@ -110,10 +126,10 @@ client.on("message", async msg => {
         let word = "";
         if (rng(0, 2) === 0) {
             if (rng(0, 2) === 0) word = L2[rng(0, L2.length)];
-            else for (let i = 0; i < 2; i++) word += dist[rng(0, 98)];
+            else word = genWord(2)
         } else {
             if (rng(0, 2) === 0) word = L3[rng(0, L3.length)];
-            else for (let i = 0; i < 3; i++) word += dist[rng(0, 98)];
+			else word = genWord(3);
         }
 
         console.log(word);
@@ -170,24 +186,19 @@ client.on("message", async msg => {
         }
         else {
             gameOnGoing = true;
-
-            let word = "";
-            for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
-            curWord = word = word.split("").sort().join("");
-            msg.channel.setTopic(word);
-            msg.channel.send("Rack: "+word);
+            curRack = toAlphagram(genWord(7));
+            msg.channel.setTopic(curRack);
+            msg.channel.send("Rack: "+curRack);
             usedSet.clear();
-            scores.clear();
-
+            numwords.clear();
+			points.clear();
             setTimeout(() => {
-                var toSend = "Scores: \n";
-                console.log(scores);
-                for (var key in scores) {
-                    toSend += (key + ": " + scores[key] + " words, " + points[key] + " points\n");
-                    console.log(key, scores[key], points[key]);
+                let toSend = "Scores: \n";
+                for (let [k, v] of numwords) {
+                    toSend += (k + ": " + v + " words, " + points.get(k) + " points\n");
+                    //console.log(k + ": " + v + "," + points.get(k));
                 }
                 msg.channel.send(toSend);
-
                 gameOnGoing = false;
             }, 60000);
         }
