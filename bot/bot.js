@@ -11,7 +11,7 @@ const score = [1, 3, 3, 2, 1, 4, 2, 4, 1, 8, 5, 1, 3, 1, 1, 3, 10, 1, 1, 1, 1, 4
 const L2 = []; //set of 2 letters
 const L3 = []; //set of 3 letters
 
-let curWord;
+let curRack;
 let usedSet = new Set();
 
 let numWords = new Map();
@@ -49,7 +49,7 @@ client.on("message", async msg => {
         if (msg.channel.id === '706659909630033991' && gameOnGoing) {
             let word = message.toUpperCase();
 
-            if (isFormable(word,curWord)) {
+            if (isFormable(word,curRack)) {
                 let id = msg.author.id;
                 msg.react('👍');
 
@@ -146,18 +146,25 @@ client.on("message", async msg => {
                 sentEmbed.reactions.cache.get('❎').remove();
             });
         });
-    } else if (message[0] === "scramble") {
+    } else if (message[0] === "scramble" || message[0] === "scr") {
         if (msg.channel.id !== '706659909630033991') return; //ensure games only take place in scramble
 
         if (gameOnGoing) {
             msg.channel.send("A game is currently going on...");
         } else {
             gameOnGoing = true;
-
-            curWord = genWord(7);
-            curWord = toAlphagram(curWord);
-            msg.channel.setTopic(curWord);
-            msg.channel.send("Rack: " + curWord);
+			
+			let gameTime = 60000;
+			if (message.length > 1){
+				let inputTime = parseInt(message[1])
+				if (inputTime != NaN && inputTime >= 10) gameTime = inputTime * 1000;
+			}
+			
+            curRack = genWord(7);
+            curRack = toAlphagram(curRack);
+            msg.channel.setTopic(curRack);
+			msg.channel.send("A new game for " + gameTime/1000 + " seconds has started! ")
+            msg.channel.send("Rack: " + curRack);
 
             //initializing shit
             usedSet.clear();
@@ -180,7 +187,7 @@ client.on("message", async msg => {
                 msg.channel.send(toSend);
 
                 gameOnGoing = false;
-            }, 60000);
+            }, gameTime);
         }
     }
 
@@ -212,17 +219,13 @@ function isFormable(word, rack){
     word = toAlphagram(word);
     rack = toAlphagram(rack);
     length = rack.length;
-    for (let mask = 0; mask < (1<<length); mask++) {
-        let check = "";
-        for (let i = 0; i < length; i++) {
-            if (mask & (1 << i)) {
-                check += rack[i];
-            }
-        }
-        if (check === word) {
-            return true;
-        }
-    }
+	let j = 0;
+	for (let i = 0; i < length; i++){
+		if (rack[i] === word[j]){
+			j++;
+		}
+		if (j == word.length) return true;
+	}
     return false;
 }
 
