@@ -89,14 +89,14 @@ client.on("message", async msg => {
             let graded = false;
 
             const filter = (reaction, user) => (reaction.emoji.name === '✅' || reaction.emoji.name === '❎') && user.id === msg.author.id;
-            const collector = sentEmbed.createReactionCollector(filter, {time: 600000});
+            const collector = sentEmbed.createReactionCollector(filter, {time: 5000});
             collector.on('collect', r => {
                 if (graded) return;
                 graded=true;
 
                 var choice=(r.emoji.name==='✅');
 
-                var verdict;
+                let verdict;
                 if (choice===words.has(word)) verdict="You are correct!\n";
                 else verdict="You are wrong!\n";
 
@@ -104,6 +104,22 @@ client.on("message", async msg => {
                 else verdict+=word+" is not a word.";
 
                 sentEmbed.edit(verdict);
+
+                sentEmbed.reactions.cache.get('✅').remove();
+                sentEmbed.reactions.cache.get('❎').remove();
+            });
+            collector.on('end', collected => {
+                if (graded) return;
+
+                let verdict = "You ran out of time.\n";
+
+                if (words.has(word)) verdict+=word+" is a word.\nDefinition: "+words.get(word);
+                else verdict+=word+" is not a word.";
+
+                sentEmbed.edit(verdict);
+
+                sentEmbed.reactions.cache.get('✅').remove();
+                sentEmbed.reactions.cache.get('❎').remove();
             });
         });
     }
@@ -112,8 +128,9 @@ client.on("message", async msg => {
 		for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
 		word = word.split("").sort().join("")
 		///how to check
-		await msg.channel.send(word)
-		await msg.channel.setTopic(word)
+		msg.channel.setTopic(word);
+
+        msg.channel.send("rack chosen");
 	}
 
 });
