@@ -11,6 +11,8 @@ const dist="AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOP
 const L2=[]; //set of 2 letters
 const L3=[]; //set of 3 letters
 
+var curWord
+
 function toAlphagram(str){
 	return str.split("").sort().join("");
 }
@@ -110,10 +112,29 @@ client.on("message", async msg => {
 	else if (message[0] === "scramble" && message[1] === "start"){
 		var word = "";
 		for (let i = 0; i < 7; i++) word += dist[rng(0, 98)];
-		word = word.split("").sort().join("")
+		curWord = word = word.split("").sort().join("")
 		///how to check
 		await msg.channel.send(word)
 		await msg.channel.setTopic(word)
+	}
+	else if (message[0] === "g"){
+		var word = message[1].toUpperCase();
+		if (words.has(word)){
+			word = toAlphagram(word);
+			for (var mask = 0; mask < 128; mask++){
+				var check = "";
+				for (var i = 0; i < 7; i++){
+					if (mask & (1<<i)){
+						check += curWord[i];
+					}
+				}
+				if (check === word){
+					msg.channel.send("good!")
+					return;
+				}
+			}
+		}
+		msg.channel.send("you cant make that word!")
 	}
 
 });
