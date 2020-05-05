@@ -12,11 +12,11 @@ const L2 = []; //set of 2 letters
 const L3 = []; //set of 3 letters
 
 let curRack;
-let usedSet = new Set();
+const usedSet = new Set();
 
-let numWords = new Map();
-let points = new Map();
-let names = new Map();
+const numWords = new Map();
+const points = new Map();
+const names = new Map();
 let ids = [];
 
 let gameOnGoing = false;
@@ -49,19 +49,19 @@ client.on("message", async msg => {
         if (msg.channel.id === '706659909630033991' && gameOnGoing) {
             let word = message.toUpperCase();
 
-            if (isFormable(word,curRack)) {
+            if (isFormable(word, curRack)) {
                 let id = msg.author.id;
                 msg.react('👍');
 
                 if (!names.has(id)) {
                     ids.push(id);
-                    names.set(id,msg.author.username);
-                    numWords.set(id,0);
-                    points.set(id,0);
+                    names.set(id, msg.author.username);
+                    numWords.set(id, 0);
+                    points.set(id, 0);
                 }
 
-                numWords.set(id,numWords.get(id)+1);
-                points.set(id,points.get(id)+getPoints(word));
+                numWords.set(id, numWords.get(id) + 1);
+                points.set(id, points.get(id) + getPoints(word));
                 //msg.channel.send(word + " is good! " + scoreWord(word) + " points");
                 usedSet.add(word);
             }
@@ -118,7 +118,7 @@ client.on("message", async msg => {
                 if (graded) return;
                 graded = true;
 
-                var choice = (r.emoji.name === '✅');
+                const choice = (r.emoji.name === '✅');
 
                 let verdict;
                 if (choice === words.has(word)) verdict = "You are correct!\n";
@@ -153,17 +153,17 @@ client.on("message", async msg => {
             msg.channel.send("A game is currently going on...");
         } else {
             gameOnGoing = true;
-			
-			let gameTime = 60000;
-			if (message.length > 1){
-				let inputTime = parseInt(message[1])
-				if (inputTime != NaN && inputTime >= 10) gameTime = inputTime * 1000;
-			}
-			
+
+            let gameTime = 60000;
+            if (message.length > 1) {
+                let inputTime = parseInt(message[1]);
+                if (!isNaN(inputTime) && inputTime >= 10) gameTime = inputTime * 1000;
+            }
+
             curRack = genWord(7);
             curRack = toAlphagram(curRack);
             msg.channel.setTopic(curRack);
-			msg.channel.send("A new game for " + gameTime/1000 + " seconds has started! ")
+            msg.channel.send("A new game for " + gameTime / 1000 + " seconds has started! ");
             msg.channel.send("Rack: " + curRack);
 
             //initializing shit
@@ -207,25 +207,25 @@ function getPoints(str) {
     return res;
 }
 
-function genWord(length){
+function genWord(length) {
     let word = "";
     for (let i = 0; i < length; i++) word += dist[rng(0, 98)];
     return word;
 }
 
-function isFormable(word, rack){
+function isFormable(word, rack) {
     if (!words.has(word) || usedSet.has(word)) return false;
 
     word = toAlphagram(word);
     rack = toAlphagram(rack);
     length = rack.length;
-	let j = 0;
-	for (let i = 0; i < length; i++){
-		if (rack[i] === word[j]){
-			j++;
-		}
-		if (j == word.length) return true;
-	}
+    let j = 0;
+    for (let i = 0; i < length; i++) {
+        if (rack[i] === word[j]) {
+            j++;
+        }
+        if (j === word.length) return true;
+    }
     return false;
 }
 
