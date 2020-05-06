@@ -4,6 +4,7 @@ const client = new Discord.Client();
 const fs = require("fs");
 
 const words = new Map(); //store words and their definition
+const words_vec = [];
 
 const dist = "AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOPPQRRRRRRSSSSTTTTTTUUUUVVWWXYYZ";
 //this is just a distribution of tiles to generate scrabble word quiz
@@ -33,6 +34,7 @@ client.on("ready", () => {
             const temp = word.split("\t");
 
             words.set(temp[0], temp[1]);
+            words_vec.push(temp[0]);
 
             if (temp[0].length === 2) L2.push(temp[0]);
             if (temp[0].length === 3) L3.push(temp[0]);
@@ -95,7 +97,23 @@ client.on("message", async msg => {
             }
         }
     } else if (message[0] === "anagram") {
-        msg.author.send("anagram");
+        if (message.length < 2) {
+            msg.channel.send("No rack specified!");
+            return;
+        }
+
+        let rack = message[1].toUpperCase();
+
+        let res = "";
+
+        for (let word of words_vec) {
+            if (isFormable(word, rack)) {
+                res += word + "\n";
+            }
+        }
+
+        if (res === "") msg.author.send("No words found.");
+        else msg.author.send(res);
     } else if (message[0] === "pattern") {
         msg.author.send("pattern");
     } else if (message[0] === "starts") {
@@ -203,7 +221,7 @@ client.on("message", async msg => {
         }
 
         curRack = genWord(7);
-        curRack = toAlphagram(curRack);
+        curRack = toAlphagram(curRack).join("");
         msg.channel.setTopic(curRack);
         msg.channel.send("A new game for " + gameTime / 1000 + " seconds has started! ");
         msg.channel.send("Rack: " + curRack);
@@ -238,7 +256,7 @@ client.on("message", async msg => {
             "valid - check if a word is valid\n" +
             "anagram - check for anagrams (WIP)\n" +
             "pattern - check for all words that fit pattern (WIP)\n" +
-            "starts - check for all words that start with that string (WIP)\n" +
+            "starts - check for all words that starts with that string (WIP)\n" +
             "end - checks for all words that ends with that string (WIP)\n" +
             "contains - checks for all words that contains that string (WIP)\n" +
             "test - test your 2 and 3 letter knowledge\n" +
@@ -250,7 +268,7 @@ client.on("message", async msg => {
 client.login(require('./auth.json').token);
 
 function toAlphagram(str) {
-    return str.split("").sort().join("");
+    return str.split("").sort();
 }
 
 function getPoints(str) {
