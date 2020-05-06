@@ -21,6 +21,8 @@ let ids = [];
 
 let gameOnGoing = false;
 
+const testSet = new Set(); //make sure user does not hold 2 games
+
 client.on("ready", () => {
     console.log("Reading lexicon...");
 
@@ -36,6 +38,8 @@ client.on("ready", () => {
             if (temp[0].length === 3) L3.push(temp[0]);
         }
     });
+
+    client.user.setActivity("with anime tiddies");
 
     console.log("Bot is online!");
 });
@@ -90,107 +94,157 @@ client.on("message", async msg => {
                 msg.channel.send(word + " is not valid!");
             }
         }
+    } else if (message[0] === "anagram") {
+        msg.author.send("anagram");
+    } else if (message[0] === "pattern") {
+        msg.author.send("pattern");
+    } else if (message[0] === "starts") {
+        msg.author.send("starts");
+    } else if (message[0] === "ends") {
+        msg.author.send("ends");
+    } else if (message[0] === "contains") {
+        msg.author.send("contains");
     } else if (message[0] === "test") {
-        let word;
-        if (rng(0, 2) === 0) {
-            if (rng(0, 2) === 0) word = L2[rng(0, L2.length)];
-            else word = genWord(2);
-        } else {
-            if (rng(0, 2) === 0) word = L3[rng(0, L3.length)];
-            else word = genWord(3);
+        if (testSet.has(msg.author.id)) {
+            msg.channel.send("You are already in a test...");
+            return;
         }
 
-        console.log(word);
+        testSet.add(msg.author.id);
 
-        await msg.channel.send(msg.author.toString() + " " + word).then(async sentEmbed => {
-            try {
-                await sentEmbed.react('✅');
-                await sentEmbed.react('❎');
-            } catch (error) {
-                console.error('One of the emojis failed to react.');
+        let score = 0;
+        let bad = false;
+
+        while (!bad) {
+            let fin = false;
+
+            let word;
+            if (rng(0, 5) === 0) { //eh is there a better balance?
+                if (rng(0, 2) === 0) word = L2[rng(0, L2.length)];
+                else word = genWord(2);
+            } else {
+                if (rng(0, 2) === 0) word = L3[rng(0, L3.length)];
+                else word = genWord(3);
             }
 
-            let graded = false;
+            msg.channel.send(msg.author.toString() + " " + word).then(async sentEmbed => {
+                try {
+                    await sentEmbed.react('✅');
+                    await sentEmbed.react('❎');
+                } catch (error) {
+                    console.error('One of the emojis failed to react.');
+                }
 
-            const filter = (reaction, user) => (reaction.emoji.name === '✅' || reaction.emoji.name === '❎') && user.id === msg.author.id;
-            const collector = sentEmbed.createReactionCollector(filter, {time: 5000});
-            collector.on('collect', r => {
-                if (graded) return;
-                graded = true;
+                let graded = false;
 
-                const choice = (r.emoji.name === '✅');
+                const filter = (reaction, user) => (reaction.emoji.name === '✅' || reaction.emoji.name === '❎') && user.id === msg.author.id;
+                const collector = sentEmbed.createReactionCollector(filter, {time: 5000});
+                collector.on('collect', r => {
+                    if (graded) return;
+                    graded = true;
 
-                let verdict;
-                if (choice === words.has(word)) verdict = "You are correct!\n";
-                else verdict = "You are wrong!\n";
+                    const choice = (r.emoji.name === '✅');
 
-                if (words.has(word)) verdict += word + " is a word.\nDefinition: " + words.get(word);
-                else verdict += word + " is not a word.";
+                    let verdict;
+                    if (choice === words.has(word)) {
+                        verdict = "You are correct!\n";
+                        score++;
+                    } else {
+                        verdict = "You are wrong!\n";
+                        bad = true;
+                    }
+                    if (words.has(word)) verdict += word + " is a word.\nDefinition: " + words.get(word);
+                    else verdict += word + " is not a word.";
 
-                sentEmbed.edit(verdict);
+                    sentEmbed.edit(verdict);
 
-                sentEmbed.reactions.cache.get('✅').remove();
-                sentEmbed.reactions.cache.get('❎').remove();
+                    //sentEmbed.reactions.cache.get('✅').remove();
+                    //sentEmbed.reactions.cache.get('❎').remove();
+
+                    fin = true;
+                });
+                collector.on('end', () => {
+                    if (graded) return;
+
+                    let verdict = "You ran out of time.\n";
+
+                    if (words.has(word)) verdict += word + " is a word.\nDefinition: " + words.get(word);
+                    else verdict += word + " is not a word.";
+
+                    sentEmbed.edit(verdict);
+
+                    //sentEmbed.reactions.cache.get('✅').remove();
+                    //sentEmbed.reactions.cache.get('❎').remove();
+
+                    bad = true;
+                    fin = true;
+                });
             });
-            collector.on('end', collected => {
-                if (graded) return;
 
-                let verdict = "You ran out of time.\n";
+            while (!fin) await sleep(200); //somehow this works idk really dk how but dont touch
+        }
 
-                if (words.has(word)) verdict += word + " is a word.\nDefinition: " + words.get(word);
-                else verdict += word + " is not a word.";
-
-                sentEmbed.edit(verdict);
-
-                sentEmbed.reactions.cache.get('✅').remove();
-                sentEmbed.reactions.cache.get('❎').remove();
-            });
-        });
+        msg.channel.send(msg.author.toString() + " your score is " + score);
+        testSet.delete(msg.author.id);
     } else if (message[0] === "scramble" || message[0] === "scr") {
         if (msg.channel.id !== '706659909630033991') return; //ensure games only take place in scramble
 
         if (gameOnGoing) {
             msg.channel.send("A game is currently going on...");
-        } else {
-            gameOnGoing = true;
-
-            let gameTime = 60000;
-            if (message.length > 1) {
-                let inputTime = parseInt(message[1]);
-                if (!isNaN(inputTime) && inputTime >= 10) gameTime = inputTime * 1000;
-            }
-
-            curRack = genWord(7);
-            curRack = toAlphagram(curRack);
-            msg.channel.setTopic(curRack);
-            msg.channel.send("A new game for " + gameTime / 1000 + " seconds has started! ");
-            msg.channel.send("Rack: " + curRack);
-
-            //initializing shit
-            usedSet.clear();
-            numWords.clear();
-            points.clear();
-            names.clear();
-            ids = [];
-
-            setTimeout(() => {
-                ids.sort(function (x, y) {
-                    if (points[x] < points[y]) return 1;
-                    else if (points[x] === points[y]) return 0;
-                    else return -1;
-                });
-
-                let toSend = "Scores: \n";
-                for (const id of ids) {
-                    toSend += (names.get(id) + ": " + numWords.get(id) + " words, " + points.get(id) + " points\n");
-                }
-                msg.channel.send(toSend);
-
-                gameOnGoing = false;
-            }, gameTime);
+            return;
         }
-    }
 
+        gameOnGoing = true;
+
+        let gameTime = 60000;
+        if (message.length > 1) {
+            let inputTime = parseInt(message[1]);
+            if (!isNaN(inputTime) && inputTime >= 10) gameTime = inputTime * 1000;
+        }
+
+        curRack = genWord(7);
+        curRack = toAlphagram(curRack);
+        msg.channel.setTopic(curRack);
+        msg.channel.send("A new game for " + gameTime / 1000 + " seconds has started! ");
+        msg.channel.send("Rack: " + curRack);
+
+        //initializing shit
+        usedSet.clear();
+        numWords.clear();
+        points.clear();
+        names.clear();
+        ids = [];
+
+        setTimeout(() => {
+            ids.sort(function (x, y) {
+                if (points[x] < points[y]) return 1;
+                else if (points[x] === points[y]) return 0;
+                else return -1;
+            });
+
+            let toSend = "Scores: \n";
+            for (const id of ids) {
+                toSend += (names.get(id) + ": " + numWords.get(id) + " words, " + points.get(id) + " points\n");
+            }
+            msg.channel.send(toSend);
+
+            gameOnGoing = false;
+        }, gameTime);
+    } else if (message[0] === "help") {
+        msg.channel.send("```\n" +
+            "Prefix: u!\n" +
+            "\n" +
+            "Commands:\n" +
+            "valid - check if a word is valid\n" +
+            "anagram - check for anagrams (WIP)\n" +
+            "pattern - check for all words that fit pattern (WIP)\n" +
+            "starts - check for all words that start with that string (WIP)\n" +
+            "end - checks for all words that ends with that string (WIP)\n" +
+            "contains - checks for all words that contains that string (WIP)\n" +
+            "test - test your 2 and 3 letter knowledge\n" +
+            "scramble - play scramble (only available in scramble channel)\n" +
+            "```");
+    }
 });
 
 client.login(require('./auth.json').token);
@@ -232,4 +286,10 @@ function isFormable(word, rack) {
 //utility shit
 function rng(min, max) { //get a random integer from [min,max)
     return Math.floor(Math.random() * (max - min)) + min;
+}
+
+function sleep(time) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, time);
+    });
 }
