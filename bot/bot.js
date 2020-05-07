@@ -21,7 +21,7 @@ const points = new Map();
 const names = new Map();
 let ids = [];
 
-let gameOnGoing = false;
+let gameOnGoing = new Map();
 
 const testSet = new Set(); //make sure user does not hold 2 games
 
@@ -211,14 +211,14 @@ client.on("message", async msg => {
         msg.channel.send(msg.author.toString() + " your score is " + score);
         testSet.delete(msg.author.id);
     } else if (message[0] === "scramble" || message[0] === "scr") {
-        if (!scrambleChannels.has(msg.channel.id)) return; //ensure games only take place in scramble
+        if (!scrambleChannels.has(msg.channel.id)) return; //ensure games only take place in allowed channels
 
-        if (gameOnGoing) {
+        if (gameOnGoing.get(msg.channel.id)) {
             msg.channel.send("A game is currently going on...");
             return;
         }
 
-        gameOnGoing = true;
+        gameOnGoing.set(msg.channel.id,true);
 
         let gameTime = 60000;
         if (message.length > 1) {
@@ -261,12 +261,12 @@ client.on("message", async msg => {
             "contains - checks for all words that contains that string (WIP)\n" +
             "test - test your 2 and 3 letter knowledge\n" +
             "scramble [time] [lengthlimit] - play scramble (only available in some channels)\n" +
-			"endgame - end scramble game\n" +
+			//"endgame - end scramble game\n" +
             "```");
     }
-	else if (message[0] === "endgame") {
-        endGame(msg)
-    }
+	/*else if (message[0] === "endgame") {
+        endGame(msg);
+    }*/
 });
 
 client.login(require('./auth.json').token);
@@ -306,7 +306,7 @@ function isFormable(word, rack) {
 }
 
 function endGame(msg){
-	if (gameOnGoing) {
+	if (gameOnGoing.get(msg.channel.id)) {
 		ids.sort(function (x, y) {
 			if (points.get(x) < points.get(y)) return 1;
 			else if (points.get(x) === points.get(y)) {
@@ -321,7 +321,7 @@ function endGame(msg){
 		}
 		msg.channel.setTopic("");
 		msg.channel.send(toSend);
-		gameOnGoing = false;
+		gameOnGoing.set(msg.channel.id,false);
 	}
 }
 
