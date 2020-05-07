@@ -24,6 +24,8 @@ let gameOnGoing = false;
 
 const testSet = new Set(); //make sure user does not hold 2 games
 
+const scrambleChannels = new Set(['706659909630033991', '707951810702213220']);
+
 client.on("ready", () => {
     console.log("Reading lexicon...");
 
@@ -41,7 +43,7 @@ client.on("ready", () => {
         }
     });
 
-    client.user.setActivity("with anime tiddies");
+    client.user.setActivity("Scrabble");
 
     console.log("Bot is online!");
 });
@@ -52,7 +54,7 @@ client.on("message", async msg => {
     let message = msg.content;
 
     if (message.length < 2 || message.substring(0, 2) !== "u!") { //string does not match command format
-        if (msg.channel.id === '706659909630033991' && gameOnGoing) {
+        if (scrambleChannels.has(msg.channel.id) && gameOnGoing) {
             let word = message.toUpperCase();
 
             if (isFormable(word, curRack)) {
@@ -146,13 +148,6 @@ client.on("message", async msg => {
             }
 
             msg.channel.send(msg.author.toString() + " " + word).then(async sentEmbed => {
-                try {
-                    await sentEmbed.react('✅');
-                    await sentEmbed.react('❎');
-                } catch (error) {
-                    console.error('One of the emojis failed to react.');
-                }
-
                 let graded = false;
 
                 const filter = (reaction, user) => (reaction.emoji.name === '✅' || reaction.emoji.name === '❎') && user.id === msg.author.id;
@@ -197,6 +192,13 @@ client.on("message", async msg => {
                     bad = true;
                     fin = true;
                 });
+
+                try {
+                    await sentEmbed.react('✅');
+                    await sentEmbed.react('❎');
+                } catch (error) {
+                    console.error('One of the emojis failed to react.');
+                }
             });
 
             while (!fin) await sleep(200); //somehow this works idk really dk how but dont touch
@@ -205,7 +207,7 @@ client.on("message", async msg => {
         msg.channel.send(msg.author.toString() + " your score is " + score);
         testSet.delete(msg.author.id);
     } else if (message[0] === "scramble" || message[0] === "scr") {
-        if (msg.channel.id !== '706659909630033991') return; //ensure games only take place in scramble
+        if (!scrambleChannels.has(msg.channel.id)) return; //ensure games only take place in scramble
 
         if (gameOnGoing) {
             msg.channel.send("A game is currently going on...");
@@ -235,9 +237,12 @@ client.on("message", async msg => {
 
         setTimeout(() => {
             ids.sort(function (x, y) {
-                if (points[x] < points[y]) return 1;
-                else if (points[x] === points[y]) return 0;
-                else return -1;
+                if (points.get(x) < points.get(y)) return 1;
+                else if (points.get(x) === points.get(y)) {
+                    if (numWords.get(x) < numWords.get(y)) return 1;
+                    else if (numWords.get(x) === numWords.get(y)) return 0;
+                    else return -1;
+                } else return -1;
             });
 
             let toSend = "Scores: \n";
