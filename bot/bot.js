@@ -13,6 +13,7 @@ const L2 = []; //set of 2 letters
 const L3 = []; //set of 3 letters
 
 let curRack;
+let lengthLimit = 0;
 const usedSet = new Set();
 
 const numWords = new Map();
@@ -57,7 +58,7 @@ client.on("message", async msg => {
         if (scrambleChannels.has(msg.channel.id) && gameOnGoing) {
             let word = message.toUpperCase();
 
-            if (isFormable(word, curRack)) {
+            if (isFormable(word, curRack) && word.length >= lengthLimit) {
                 let id = msg.author.id;
                 msg.react('👍');
 
@@ -70,7 +71,10 @@ client.on("message", async msg => {
 
                 numWords.set(id, numWords.get(id) + 1);
                 points.set(id, points.get(id) + getPoints(word));
-                //msg.channel.send(word + " is good! " + scoreWord(word) + " points");
+				if (word.length >= 7){
+					points.set(id, points.get(id) + 50);
+					msg.channel.send(word + " is epic bingo! +50 points");
+				}
                 usedSet.add(word);
             }
         }
@@ -221,11 +225,17 @@ client.on("message", async msg => {
             let inputTime = parseInt(message[1]);
             if (!isNaN(inputTime) && inputTime >= 10) gameTime = inputTime * 1000;
         }
+		
+		lengthLimit = 0;
+        if (message.length > 2) {
+            let inputLengthLimit = parseInt(message[2]);
+            if (!isNaN(inputLengthLimit) && inputLengthLimit <= 7) lengthLimit = inputLengthLimit;
+        }
 
         curRack = genWord(7);
         curRack = toAlphagram(curRack).join("");
-        msg.channel.setTopic(curRack);
-        msg.channel.send("A new game for " + gameTime / 1000 + " seconds has started! ");
+        msg.channel.setTopic(curRack + " Length limit: " + lengthLimit);
+        msg.channel.send("A new game for " + gameTime / 1000 + " seconds has started!");
         msg.channel.send("Rack: " + curRack);
 
         //initializing shit
@@ -236,22 +246,7 @@ client.on("message", async msg => {
         ids = [];
 
         setTimeout(() => {
-            ids.sort(function (x, y) {
-                if (points.get(x) < points.get(y)) return 1;
-                else if (points.get(x) === points.get(y)) {
-                    if (numWords.get(x) < numWords.get(y)) return 1;
-                    else if (numWords.get(x) === numWords.get(y)) return 0;
-                    else return -1;
-                } else return -1;
-            });
-
-            let toSend = "Scores: \n";
-            for (const id of ids) {
-                toSend += (names.get(id) + ": " + numWords.get(id) + " words, " + points.get(id) + " points\n");
-            }
-            msg.channel.send(toSend);
-
-            gameOnGoing = false;
+            endGame(msg);
         }, gameTime);
     } else if (message[0] === "help") {
         msg.channel.send("```\n" +
@@ -265,8 +260,12 @@ client.on("message", async msg => {
             "end - checks for all words that ends with that string (WIP)\n" +
             "contains - checks for all words that contains that string (WIP)\n" +
             "test - test your 2 and 3 letter knowledge\n" +
-            "scramble - play scramble (only available in scramble channel)\n" +
+            "scramble [time] [lengthlimit] - play scramble (only available in some channels)\n" +
+			"endgame - end scramble game\n" +
             "```");
+    }
+	else if (message[0] === "endgame") {
+        endGame(msg)
     }
 });
 
@@ -304,6 +303,26 @@ function isFormable(word, rack) {
         if (j === word.length) return true;
     }
     return false;
+}
+
+function endGame(msg){
+	if (gameOnGoing) {
+		ids.sort(function (x, y) {
+			if (points.get(x) < points.get(y)) return 1;
+			else if (points.get(x) === points.get(y)) {
+				if (numWords.get(x) < numWords.get(y)) return 1;
+				else if (numWords.get(x) === numWords.get(y)) return 0;
+				else return -1;
+			} else return -1;
+		});
+		let toSend = "Game end.\nScores: \n";
+		for (const id of ids) {
+			toSend += (names.get(id) + ": " + numWords.get(id) + " words, " + points.get(id) + " points\n");
+		}
+		msg.channel.setTopic("");
+		msg.channel.send(toSend);
+		gameOnGoing = false;
+	}
 }
 
 //utility shit
